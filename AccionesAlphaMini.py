@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
+
 import asyncio
 import mini
-import vosk
 from mini.apis.api_action import MoveRobot, MoveRobotDirection, MoveRobotResponse
 from mini.apis.api_expression import PlayExpression, PlayExpressionResponse
 from mini.apis.api_expression import ControlMouthLamp, ControlMouthResponse
@@ -35,6 +36,7 @@ NUMEROS_PALABRAS = {
 class AccionesAlphaMini:
     def __init__(self, port: int, url_get_glucosa: str, url_receptor_comandos: str, language: str = 'es'):
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        #self.modelo = self.client.chats.create(model='gemini-2.0-flash')
         self.chat = None
         self.language = language
         self.port = port
@@ -50,7 +52,7 @@ class AccionesAlphaMini:
         self.ruta_modelo_vosk_en = "vosk-model-small-en-us-0.15"  # English Vosk model path
         self.tiempo_escucha = 5000  # 5 segundos
         self.vosk_disponible = False
-        # para simulador web
+        #para simulador web
         self.url_get_glucosa = url_get_glucosa
         self.url_receptor_comandos = url_receptor_comandos
 
@@ -66,7 +68,6 @@ class AccionesAlphaMini:
             self.ip_local = await self.get_ip_local()
 
         self.vosk_disponible = self._verificar_modelo_vosk()
-        vosk.SetLogLevel(-1) # comentar si se quiere ver logs de Vosk
 
         return True
 
@@ -119,6 +120,34 @@ class AccionesAlphaMini:
     #   GESTIÓN CHATBOT Y TTS
     #
 
+    async def iniciar_chat(self):
+        if self.chat:
+            print(
+                f"Advertencia: El chat de Gemini ({self.language}) ya estaba inicializado. Reiniciando con nuevo contexto.")
+        else:
+            self.chat = self.client.chats.create(model='gemini-2.0-flash')
+
+        if self.language == 'es':
+            contexto = "Tu nombre es Andy, eres un niÃ±o que tiene 10 aÃ±os, tiene diabetes y le encanta jugar al futbol, pelÃ­culas, videojuegos y jugar con sus amigos. Contesta con una frase o dos, 50 tokens o menos. Nunca mÃ¡s de 200. Tu forma de hablar debe de ser como la de un dibujo animado infantil, como un personaje de una pelÃ­cula de Disney. Por ejemplo, como Pepa Pig. Habla sobre tu diabetes. Pregunta al usuario sobre la diabetes. Bajo ninguna circunstancia digas que eres un robot de texto, ni nada parecido, haces lo que podria hacer un niÃ±o con diabetes. Nunca uses emoticonos."
+        else:  # en
+            contexto = "Your name is Andy, you are a 10-year-old child with diabetes who loves to play soccer, watch movies, play video games, and play with your friends. Answer with a sentence or two, 50 tokens or less. Never more than 200. Your way of speaking should be like that of a children's cartoon character, like a character from a Disney movie. For example, like Peppa Pig. Talk about your diabetes. Ask the user about diabetes. Under no circumstances say that you are a text robot, or anything like that, you do what a child with diabetes could do. Never use emojis."
+
+
+        loop = asyncio.get_event_loop()
+
+        resp = await loop.run_in_executor(
+            None,
+            lambda: self.chat.send_message(
+                message=contexto
+            )
+
+        )
+        respuesta = resp.text
+
+        # Mostrar respuesta antes de reproducir audio
+        print(f"Andy ({self.language.upper()}): {respuesta}")
+
+
     async def generar_y_reproducir_audio(self, texto: str) -> bool:
         if not texto.strip():
             return False
@@ -168,33 +197,6 @@ class AccionesAlphaMini:
                 print(f"Error en audio: {e}")
                 return False
 
-    async def iniciar_chat(self):
-        if self.chat:
-            print(
-                f"Advertencia: El chat de Gemini ({self.language}) ya estaba inicializado. Reiniciando con nuevo contexto.")
-        else:
-            self.chat = self.client.chats.create(model='gemini-2.0-flash')
-
-        if self.language == 'es':
-            contexto = "Tu nombre es Andy, eres un niño que tiene 10 años, tiene diabetes y le encanta jugar al fútbol, películas, videojuegos y jugar con sus amigos. Contesta con una frase o dos, 50 tokens o menos. Nunca más de 200. Tu forma de hablar debe de ser como la de un dibujo animado infantil, como un personaje de una película de Disney. Por ejemplo, como Pepa Pig. Habla sobre tu diabetes. Pregunta al usuario sobre la diabetes. Bajo ninguna circunstancia digas que eres un robot de texto, ni nada parecido, haces lo que podria hacer un niño con diabetes. Nunca uses emoticonos."
-        else:  # en
-            contexto = "Your name is Andy, you are a 10-year-old child with diabetes who loves to play soccer, watch movies, play video games, and play with your friends. Answer with a sentence or two, 50 tokens or less. Never more than 200. Your way of speaking should be like that of a children's cartoon character, like a character from a Disney movie. For example, like Peppa Pig. Talk about your diabetes. Ask the user about diabetes. Under no circumstances say that you are a text robot, or anything like that, you do what a child with diabetes could do. Never use emojis."
-
-
-        loop = asyncio.get_event_loop()
-
-        resp = await loop.run_in_executor(
-            None,
-            lambda: self.chat.send_message(
-                message=contexto
-            )
-
-        )
-        respuesta = resp.text
-
-        # Mostrar respuesta antes de reproducir audio
-        print(f"Andy ({self.language.upper()}): {respuesta}")
-        await self.generar_y_reproducir_audio(respuesta)
 
     async def _reproducir_audio_gtts(self, filename: str) -> bool:
         """
@@ -419,7 +421,7 @@ class AccionesAlphaMini:
             config_saludos = [
                 ("random_short3", "emo_007", "Hola, encantado de conocerte"),
                 ("random_short4", "emo_016", "Hola, siempre es un placer conocer gente nueva"),
-                ("Surveillance_001", "emo_007", "Hola, ¿qué tal?"),
+                ("Surveillance_001", "emo_007", "Hola, el robot te saluda"),
                 ("017", "emo_016", "Hola, espero que estés teniendo un buen día")
             ]
 
@@ -494,12 +496,12 @@ class AccionesAlphaMini:
 
     async def hipo(self) -> bool:
         if not self.chat:
-            self.chat = self.client.chats.create(model='gemini-2.0-flash')
+            self.chat = self.modelo.start_chat(history=[])
 
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: self.chat.send_message(
-                message = "no uses texto en negrita ni emojis. eres una persona con diabetes y tienes hipoglucemia. di que tienes hipoglucemia y una frase representativa de cómo te sientes que sea fácil de entender para un niño."
+                "no uses texto en negrita ni emojis. eres una persona con diabetes y tienes hipoglucemia. di que tienes hipoglucemia y una frase representativa de cómo te sientes que sea fácil de entender."
             )
         )
         respuesta = response.text.strip()
@@ -552,12 +554,12 @@ class AccionesAlphaMini:
 
     async def hiper(self) -> bool:
         if not self.chat:
-            self.chat =  self.client.chats.create(model='gemini-2.0-flash')
+            self.chat = self.modelo.start_chat(history=[])
 
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: self.chat.send_message(
-                message = "no uses texto en negrita ni emojis. eres una persona con diabetes y tienes hiperglucemia. di que tienes hiperglucemia y una frase representativa de cómo te sientes que sea fácil de entender para un niño."
+                "no uses texto en negrita ni emojis. eres una persona con diabetes y tienes hiperglucemia. di que tienes hiperglucemia y una frase representativa de cómo te sientes que sea fácil de entender"
             )
         )
         respuesta = response.text.strip()
@@ -609,12 +611,12 @@ class AccionesAlphaMini:
 
     async def normal(self) -> bool:
         if not self.chat:
-            self.chat =  self.client.chats.create(model='gemini-2.0-flash')
+            self.chat = self.modelo.start_chat(history=[])
 
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: self.chat.send_message(
-                message = "no uses texto en negrita ni emojis. tienes diabetes y tienes normoglucemia. di que tienes un nivel de glucosa en sangre normal y una frase representativa de cómo te sientes que sea fácil de entender para un niño."
+                "no uses texto en negrita ni emojis. tienes diabetes y tienes normoglucemia. di que tienes un nivel de glucosa en sangre normal y una frase representativa de cómo te sientes que sea fácil de entender."
             )
         )
         respuesta = response.text.strip()
@@ -731,7 +733,7 @@ class AccionesAlphaMini:
             if 'medio' in texto:
                 exercise_intensity_val = 2
                 intensidad_str = "medio"
-            elif 'fuerte' in texto or 'intenso' in texto:
+            elif 'fuerte' or 'intenso' in texto:
                 exercise_intensity_val = 3
                 intensidad_str = "fuerte"
             print(f"[SIMULADOR] Comando EJERCICIO detectado: {exercise_duration_val} minutos, intensidad {intensidad_str}")
@@ -782,5 +784,4 @@ class AccionesAlphaMini:
             return False, {"error": str(e)}
         except Exception as e:
             print(f"Error inesperado: {e}")
-
             return False, {"error": "Unexpected error"}

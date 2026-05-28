@@ -68,7 +68,7 @@ class ServidorAlphaMini:
         self.http_server = None
         self.idioma = language
 
-        # Variables para el simulador-----------------------------------------------------------------------------------
+        # Variables para el simulador-------------
         self.modo_simulador = False
         self.servidor_proxy = None
         self.puerto_proxy = 8000
@@ -80,7 +80,7 @@ class ServidorAlphaMini:
         self.valor_glucosa = None  # Almacenar el ultimo valor de glucosa
         self.tarea_monitoreo_glucosa = None
         self.intervalo_monitoreo = 5
-        # --------------------------------------------------------------------------------------------------------------
+        # ----------------------------------------
         self.ac = AccionesAlphaMini(self.port, self.url_get_glucosa, self.url_receptor_comandos, self.idioma)
         self.robot_connected = False
 
@@ -89,6 +89,7 @@ class ServidorAlphaMini:
             self.local_ip = await HTTPserver.start_http_server(self)
             self.ac.ip_local = self.local_ip
             await self.ac.inicializar()
+            #await self.ac.iniciar_chat()
 
             if self.robot_connected:
                 welcome_msg = "Módulo iniciado correctamente." if self.idioma == 'es' else "Module started correctly."
@@ -178,7 +179,7 @@ class ServidorAlphaMini:
             if self.robot_connected:
                 await self._ejecutar_accion_por_estado_glucosa()
             else:
-                print("Robot no conectado, no se ejecutan acciones por estado de glucosa.")
+                print("=Robot no conectado, no se ejecutan acciones por estado de glucosa.")
 
     async def _ejecutar_accion_por_estado_glucosa(self):
         if self.estado_glucosa_actual == EstadoGlucosa.INICIAL:
@@ -405,7 +406,9 @@ class ServidorAlphaMini:
                 await self.ac.generar_y_reproducir_audio(msj_error)
             return
 
-        await self.ac.iniciar_chat()
+        msg_inicio = "Modo de voz activado. Puedes hablar conmigo ahora." if self.idioma == 'es' else "Voice mode activated. You can talk to me now."
+        if self.robot_connected:
+            await self.ac.generar_y_reproducir_audio(msg_inicio)
 
         while True:
             try:
@@ -422,7 +425,7 @@ class ServidorAlphaMini:
                     continue
 
                 prompt = "Tú" if self.idioma == 'es' else "You"
-                print(f"\n{prompt}: {texto}")
+                print(f"{prompt}: {texto}")
 
                 if texto.lower() == comandosalir:
                     msj_salir = "Adiós, hasta pronto!" if self.idioma == 'es' else "Goodbye, see you soon!"
@@ -453,8 +456,8 @@ def mostrar_ayuda(language):
         print("  voz                - Reconocimiento de voz continuo (di 'salir' para finalizar)")
         print("  caminar [x]        - Hacer caminar al robot x pasos")
         print("  saludo [1-4]       - Ejecutar saludo (tipos 1-4)")
-        print("  accion             - Ejecutar acción SDK Alpha Mini")
-        print("  expresion          - Ejecutar expresión SDK Alpha Mini")
+        print("  accion             - Ejecutar accion SDK Alpha Mini")
+        print("  expresion          - Ejecutar expresion SDK Alpha Mini")
         print("  hipo               - Ejecutar estado hipoglucemia")
         print("  normal             - Ejecutar estado normoglucemia")
         print("  hiper              - Ejecutar estado hiperglucemia")
@@ -553,14 +556,7 @@ async def main():
                     print("El simulador no está activo" if servidor.idioma == 'es' else "Simulator is not active")
                 continue
 
-            elif servidor.modo_simulador and comando == 't':
-                await servidor.controlar_simulador('t')
-                continue
-            elif servidor.modo_simulador and comando == 'v':
-                await servidor.controlar_simulador('v')
-                continue
-
-            # Bloquear resto de comandos si modo simulador
+            # Block other commands if simulator is active
             elif servidor.modo_simulador:
                 print(
                     "Modo simulador activo. Comandos limitados." if servidor.idioma == 'es' else "Simulator mode active. Limited commands.")
@@ -728,5 +724,4 @@ async def main():
 
 
 if __name__ == "__main__":
-
     asyncio.run(main())

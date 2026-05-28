@@ -7,9 +7,6 @@ class AlphaMiniHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=os.getcwd(), **kwargs)
 
-    def log_message(self, format, *args): # Comentar esta función si se quieren logs del servidor
-        pass
-
 
 def get_ip_local():
     """
@@ -33,8 +30,8 @@ async def start_http_server(server_instance):
     Args:
         server_instance: La instancia de la clase ServidorAlphaMini que contiene
                          los atributos necesarios (port, http_server, ip_local).
-
-    Devuelve la dirección IP local en la que se ha iniciado el servidor.
+    Returns:
+        La dirección IP local en la que se ha iniciado el servidor.
     """
     ip = get_ip_local()
     port = server_instance.port

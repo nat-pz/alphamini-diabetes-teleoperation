@@ -1,7 +1,6 @@
 asyncio
 alphamini
 google-genai
-pyaudio
 speechrecognition
 gtts
 vosk
